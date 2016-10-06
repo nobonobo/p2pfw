@@ -1,9 +1,6 @@
 package signaling
 
-import (
-	"encoding/json"
-	"log"
-)
+import "encoding/json"
 
 // Kinder ...
 type Kinder interface {
@@ -16,7 +13,6 @@ var register = map[string]func() Kinder{}
 func Register(factory func() Kinder) {
 	obj := factory()
 	register[obj.Kind()] = factory
-	log.Println("event register:", obj.Kind())
 }
 
 // Event ...
