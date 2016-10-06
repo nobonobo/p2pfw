@@ -8,7 +8,7 @@ import (
 
 type connWrapper struct {
 	*webrtc.DataChannel
-	dst io.Reader
+	dst io.ReadCloser
 }
 
 // NewDCConn ...
@@ -30,4 +30,11 @@ func (w *connWrapper) Read(b []byte) (int, error) {
 func (w *connWrapper) Write(b []byte) (int, error) {
 	w.DataChannel.Send(b)
 	return len(b), nil
+}
+
+func (w *connWrapper) Close() error {
+	if err := w.dst.Close(); err != nil {
+		return err
+	}
+	return w.DataChannel.Close()
 }
