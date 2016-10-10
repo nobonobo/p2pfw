@@ -139,7 +139,13 @@ func (s *Signaling) Join(req signaling.Request, none *struct{}) error {
 	if room.Preshared() != req.Preshared {
 		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
 	}
-	return room.Join(req.UserID)
+	if err := room.Join(req.UserID); err != nil {
+		return err
+	}
+	room.Send(signaling.New(req.UserID, "",
+		&signaling.Join{Member: "req.UserID"},
+	))
+	return nil
 }
 
 // Leave ...
@@ -156,7 +162,60 @@ func (s *Signaling) Leave(req signaling.Request, none *struct{}) error {
 	if room.Preshared() != req.Preshared {
 		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
 	}
-	room.Leave(req.UserID)
+	if err := room.Leave(req.UserID); err != nil {
+		return err
+	}
+	room.Send(signaling.New(req.UserID, "",
+		&signaling.Leave{Member: "req.UserID"},
+	))
+	return nil
+}
+
+// Locked ...
+func (s *Signaling) Locked(req signaling.Request, locked *bool) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if err := req.Valid(); err != nil {
+		return err
+	}
+	room, ok := s.rooms[req.RoomID]
+	if !ok {
+		return fmt.Errorf("not found room: %s", req.RoomID)
+	}
+	if room.Preshared() != req.Preshared {
+		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
+	}
+	if room.Get(req.UserID) == nil {
+		return fmt.Errorf("you not a member: %s", req.UserID)
+	}
+	*locked = room.Locked()
+	return nil
+}
+
+// SetLocked ...
+type SetLocked struct {
+	signaling.Request
+	Locked bool
+}
+
+// SetLocked ...
+func (s *Signaling) SetLocked(req *SetLocked, none *struct{}) error {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+	if err := req.Valid(); err != nil {
+		return err
+	}
+	room, ok := s.rooms[req.RoomID]
+	if !ok {
+		return fmt.Errorf("not found room: %s", req.RoomID)
+	}
+	if room.Preshared() != req.Preshared {
+		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
+	}
+	if room.Get(req.UserID) == nil {
+		return fmt.Errorf("you not a member: %s", req.UserID)
+	}
+	room.SetLocked(req.Locked)
 	return nil
 }
 

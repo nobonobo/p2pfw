@@ -5,8 +5,8 @@ import (
 	"net/http"
 )
 
-// GetDefaultStunHost ...
-func GetDefaultStunHost() (string, error) {
+// GetDefaultStunHosts ...
+func GetDefaultStunHosts() (string, error) {
 	resp, err := http.Get("https://signaling.arukascloud.io/stun")
 	if err != nil {
 		return "", err

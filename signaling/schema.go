@@ -72,6 +72,7 @@ type Room struct {
 	sync.RWMutex
 	members map[string]*Member
 	check   func()
+	locked  bool
 }
 
 // NewRoom ...
@@ -106,6 +107,20 @@ func (r *Room) SetCheckFunc(check func()) {
 	r.check = check
 }
 
+// Locked ...
+func (r *Room) Locked() bool {
+	r.RLock()
+	defer r.RUnlock()
+	return r.locked
+}
+
+// SetLocked ...
+func (r *Room) SetLocked(b bool) {
+	r.Lock()
+	defer r.Unlock()
+	r.locked = b
+}
+
 // Join ...
 func (r *Room) Join(user string) error {
 	r.Lock()
@@ -113,6 +128,9 @@ func (r *Room) Join(user string) error {
 	if m, ok := r.members[user]; ok {
 		m.Reset()
 		return nil
+	}
+	if r.locked {
+		return fmt.Errorf("room is locked")
 	}
 	m := &Member{
 		UserID: user,
@@ -124,7 +142,7 @@ func (r *Room) Join(user string) error {
 }
 
 // Leave ...
-func (r *Room) Leave(user string) {
+func (r *Room) Leave(user string) error {
 	defer func() {
 		r.RLock()
 		_, ok := r.members[r.owner]
@@ -135,10 +153,13 @@ func (r *Room) Leave(user string) {
 	}()
 	r.Lock()
 	defer r.Unlock()
-	if m, ok := r.members[user]; ok {
-		delete(r.members, user)
-		m.Close()
+	m, ok := r.members[user]
+	if !ok {
+		return fmt.Errorf("not found user: %s", user)
 	}
+	delete(r.members, user)
+	m.Close()
+	return nil
 }
 
 // Get ...
@@ -167,9 +188,13 @@ func (r *Room) Send(msg Message) error {
 		return fmt.Errorf("you not a member: %s", msg.UserID)
 	}
 	self.Reset()
-	for _, m := range r.members {
-		if m != self {
-			m.Push(msg.Event)
+	if m := r.members[msg.Event.To]; msg.Event.To != "" && m != nil {
+		m.Push(msg.Event)
+	} else {
+		for _, m := range r.members {
+			if m != self {
+				m.Push(msg.Event)
+			}
 		}
 	}
 	return nil

@@ -45,3 +45,24 @@ func (ev *Event) Get() Kinder {
 	}
 	return value
 }
+
+// Join ...
+type Join struct {
+	Member string
+}
+
+// Kind ...
+func (c *Join) Kind() string { return "join" }
+
+// Leave ...
+type Leave struct {
+	Member string
+}
+
+// Kind ...
+func (c *Leave) Kind() string { return "leave" }
+
+func init() {
+	Register(func() Kinder { return new(Join) })
+	Register(func() Kinder { return new(Leave) })
+}
