@@ -35,7 +35,13 @@ func main() {
 		log.Fatalln(err)
 	}
 	http.Handle("/", cors.Default().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, ip)
+		remote := r.Header.Get("X-Forwarded-For")
+		if remote == "" {
+			if h, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
+				remote = h
+			}
+		}
+		fmt.Fprint(w, remote)
 	})))
 	log.Println("signaling server:", l.Addr())
 	go func() {
