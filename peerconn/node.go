@@ -74,9 +74,9 @@ func (n *Node) dispatch(events []*signaling.Event) {
 		log.Printf("recv from %s: %#v", ev.From, msg)
 		switch v := msg.(type) {
 		case *signaling.Join:
-			n.OnJoin(ev.From)
+			n.OnJoin(v.Member)
 		case *signaling.Leave:
-			n.OnLeave(ev.From)
+			n.OnLeave(v.Member)
 		case *Connect:
 			pc, err := webrtc.NewPeerConnection(n.config)
 			if err != nil {

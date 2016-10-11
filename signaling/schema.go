@@ -83,7 +83,7 @@ func NewRoom(name, owner, preshared string) *Room {
 		preshared: preshared,
 		members:   map[string]*Member{},
 	}
-	room.Join(owner)
+	room.Join(Request{name, owner, preshared})
 	return room
 }
 
@@ -122,10 +122,19 @@ func (r *Room) SetLocked(b bool) {
 }
 
 // Join ...
-func (r *Room) Join(user string) error {
+func (r *Room) Join(req Request) error {
+	added := false
+	defer func() {
+		if added {
+			r.Send(Message{
+				Request: req,
+				Event:   New(req.UserID, "", &Leave{Member: req.UserID}),
+			})
+		}
+	}()
 	r.Lock()
 	defer r.Unlock()
-	if m, ok := r.members[user]; ok {
+	if m, ok := r.members[req.UserID]; ok {
 		m.Reset()
 		return nil
 	}
@@ -133,16 +142,17 @@ func (r *Room) Join(user string) error {
 		return fmt.Errorf("room is locked")
 	}
 	m := &Member{
-		UserID: user,
+		UserID: req.UserID,
 		event:  make(chan *Event, N),
 	}
-	m.timer = time.AfterFunc(TIMEOUT, func() { r.Leave(user) })
-	r.members[user] = m
+	m.timer = time.AfterFunc(TIMEOUT, func() { r.Leave(req) })
+	r.members[req.UserID] = m
+	added = true
 	return nil
 }
 
 // Leave ...
-func (r *Room) Leave(user string) error {
+func (r *Room) Leave(req Request) error {
 	defer func() {
 		r.RLock()
 		_, ok := r.members[r.owner]
@@ -151,14 +161,24 @@ func (r *Room) Leave(user string) error {
 			r.check()
 		}
 	}()
+	deleted := false
+	defer func() {
+		if deleted {
+			r.Send(Message{
+				Request: req,
+				Event:   New(req.UserID, "", &Leave{Member: req.UserID}),
+			})
+		}
+	}()
 	r.Lock()
 	defer r.Unlock()
-	m, ok := r.members[user]
+	m, ok := r.members[req.UserID]
 	if !ok {
-		return fmt.Errorf("not found user: %s", user)
+		return fmt.Errorf("not found user: %s", req.UserID)
 	}
-	delete(r.members, user)
+	delete(r.members, req.UserID)
 	m.Close()
+	deleted = true
 	return nil
 }
 

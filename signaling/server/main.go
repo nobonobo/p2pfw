@@ -139,12 +139,9 @@ func (s *Signaling) Join(req signaling.Request, none *struct{}) error {
 	if room.Preshared() != req.Preshared {
 		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
 	}
-	if err := room.Join(req.UserID); err != nil {
+	if err := room.Join(req); err != nil {
 		return err
 	}
-	room.Send(signaling.New(req.UserID, "",
-		&signaling.Join{Member: "req.UserID"},
-	))
 	return nil
 }
 
@@ -162,12 +159,9 @@ func (s *Signaling) Leave(req signaling.Request, none *struct{}) error {
 	if room.Preshared() != req.Preshared {
 		return fmt.Errorf("mismatch preshared: %s", req.Preshared)
 	}
-	if err := room.Leave(req.UserID); err != nil {
+	if err := room.Leave(req); err != nil {
 		return err
 	}
-	room.Send(signaling.New(req.UserID, "",
-		&signaling.Leave{Member: "req.UserID"},
-	))
 	return nil
 }
 

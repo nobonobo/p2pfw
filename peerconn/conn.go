@@ -9,22 +9,33 @@ import (
 // Conn ...
 type Conn struct {
 	*webrtc.PeerConnection
-	peer       string
-	mu         sync.RWMutex
-	candidates []*webrtc.IceCandidate
-	datachans  map[string]*webrtc.DataChannel
+	peer          string
+	mu            sync.RWMutex
+	candidates    []*webrtc.IceCandidate
+	datachans     map[string]*webrtc.DataChannel
+	ondatachannel func(dc *webrtc.DataChannel)
 }
 
 // NewConn ...
 func NewConn(peer string, pc *webrtc.PeerConnection) *Conn {
-	c := &Conn{
+	p := &Conn{
 		PeerConnection: pc,
 		peer:           peer,
 		candidates:     []*webrtc.IceCandidate{},
 		datachans:      map[string]*webrtc.DataChannel{},
 	}
-	pc.OnDataChannel(c.SetDataChannel)
-	return c
+	pc.OnDataChannel(func(dc *webrtc.DataChannel) {
+		p.SetDataChannel(dc)
+		if p.ondatachannel != nil {
+			p.ondatachannel(dc)
+		}
+	})
+	return p
+}
+
+// OnDataChannel ...
+func (p *Conn) OnDataChannel(fn func(dc *webrtc.DataChannel)) {
+	p.ondatachannel = fn
 }
 
 // SetDataChannel ...
@@ -32,6 +43,22 @@ func (p *Conn) SetDataChannel(dc *webrtc.DataChannel) {
 	p.mu.Lock()
 	p.datachans[dc.Label()] = dc
 	p.mu.Unlock()
+}
+
+// Close ...
+func (p *Conn) Close() error {
+	var err error
+	p.mu.Lock()
+	for _, dc := range p.datachans {
+		if e := dc.Close(); e != nil && err == nil {
+			err = e
+		}
+	}
+	p.mu.Unlock()
+	if e := p.PeerConnection.Close(); e != nil && err == nil {
+		err = e
+	}
+	return err
 }
 
 // Peer ...
