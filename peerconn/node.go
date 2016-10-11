@@ -20,6 +20,8 @@ type Node struct {
 	Clients *Connections // 接続元
 	Servers *Connections // 接続先
 
+	OnJoin           func(member string)
+	OnLeave          func(member string)
 	OnPeerConnection func(string, *Conn) error
 }
 
@@ -35,6 +37,8 @@ func NewNode(dial *client.Config, config *webrtc.Configuration) (*Node, error) {
 		config:           config,
 		Clients:          NewConnections(),
 		Servers:          NewConnections(),
+		OnJoin:           func(string) {},
+		OnLeave:          func(string) {},
 		OnPeerConnection: func(string, *Conn) error { return nil },
 	}
 	n.done = make(chan error)
@@ -69,6 +73,10 @@ func (n *Node) dispatch(events []*signaling.Event) {
 		msg := ev.Get()
 		log.Printf("recv from %s: %#v", ev.From, msg)
 		switch v := msg.(type) {
+		case *signaling.Join:
+			n.OnJoin(ev.From)
+		case *signaling.Leave:
+			n.OnLeave(ev.From)
 		case *Connect:
 			pc, err := webrtc.NewPeerConnection(n.config)
 			if err != nil {
@@ -169,7 +177,7 @@ func (n *Node) dispatch(events []*signaling.Event) {
 		case *AnswerFailed:
 			n.Clients.Del(ev.From)
 		default:
-			log.Println("%s: unsupported event %#v", ev.From, msg)
+			log.Printf("%s: unsupported event %#v", ev.From, msg)
 		}
 	}
 }
