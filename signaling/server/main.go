@@ -78,8 +78,7 @@ func (s *Signaling) CreateRoom(req signaling.Request, none *struct{}) error {
 	}
 	if room, ok := s.rooms[req.RoomID]; ok {
 		if room.Owner() == req.UserID && room.Preshared() == req.Preshared {
-			room.Join(req.UserID)
-			return nil
+			return room.Join(req)
 		}
 		return fmt.Errorf("room name duplicated: %s", req.RoomID)
 	}
