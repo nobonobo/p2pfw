@@ -6,15 +6,10 @@ export GOPATH:=$(GOPATH):$(shell cd ../../../../../..; pwd)
 push: build
 	docker push $(TAG)
 
-depends:
-	go get github.com/rs/cors
-	go get golang.org/x/net/websocket
-
-build: depends
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(PKG)
+build:
 	docker build --rm -t $(TAG) .
 
-run: build
+run:
 	docker run -it --rm --name $(NAME) -p 8080:8080 $(TAG)
 
 shell:
